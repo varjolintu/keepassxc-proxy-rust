@@ -9,7 +9,7 @@ use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 
 fn valid_length(length: u32) -> bool
 {
-	return length > 0 && length <= 4096;	// 1024 ^ 2 is the maximum
+	return length > 0 && length <= 16384;	// 1024 ^ 2 is the maximum
 }
 
 fn read_header() -> (u32)
@@ -36,6 +36,7 @@ fn read_body(length: u32, socket: &UdpSocket)
 			}
 		},
 		Err(e) => panic!("Read error: {}", e)
+		//Err(e) => {}
 	}
 }
 
@@ -47,12 +48,14 @@ fn read_udp_response(socket: &UdpSocket)
     	Ok((length, src)) => {
     		if valid_length(length as u32) {
     			thread::spawn(move || {
+    				let buf = &mut buf[..length];
 					let text = str::from_utf8(&buf).unwrap();
 					write_output(text);
 			    });
     		}
     	},
-    	Err(e) => panic!("Read error: {}", e)
+    	//Err(e) => panic!("Read error: {}", e)
+    	Err(e) => {}
     }    
 }
 
