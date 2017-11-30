@@ -39,7 +39,6 @@ fn read_body(length: u32, socket: &mut ProxySocket)
 
 	if let Ok(_) = handle.read_exact(&mut buffer) {
 		if valid_length(length) {
-			socket.write_u32::<NativeEndian>(length).unwrap();
 			socket.write(&buffer).unwrap();
 			socket.flush().unwrap();
 			read_response(socket);
@@ -49,22 +48,22 @@ fn read_body(length: u32, socket: &mut ProxySocket)
 
 fn read_response(socket: &mut ProxySocket)
 {
-	let mut len_buf = vec![0; 4];
-
-	if let Ok(_) = socket.read_exact(&mut len_buf) {
-		let len = NativeEndian::read_u32(&len_buf);
-		let mut buf = vec![0; len as usize];
-		if let Ok(_) = socket.read_exact(&mut buf) {
-			write_response(&buf, len);
+	let mut buf = vec![0; 1024 * 1024];
+	if let Ok(len) = socket.read(&mut buf) {
+		// for some reason the length is 1 byte too long in linux?
+		let mut adjust = 0;
+		if cfg!(not(windows)) {
+			adjust = 1;
 		}
+		write_response(&buf[0..len - adjust]);
 	}
 }
 
-fn write_response(buf: &[u8], len: u32) {
+fn write_response(buf: &[u8]) {
 	let stdout = io::stdout();
 	let mut out = stdout.lock();
 
-	out.write_u32::<NativeEndian>(len).unwrap();
+	out.write_u32::<NativeEndian>(buf.len() as u32).unwrap();
 	out.write(buf).unwrap();
 	out.flush().unwrap();
 }
@@ -73,7 +72,6 @@ fn main() {
 	let mut socket = ProxySocket::connect().unwrap();
 
 	// Start thread for user input reading
-	//let mut send_socket = socket.try_clone().expect("Cannot clone socket");
 	let ui = thread::spawn(move || {
 		loop {
 			let length = read_header();

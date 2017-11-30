@@ -7,8 +7,15 @@ pub struct ProxySocket(UnixStream);
 
 impl ProxySocket {
 	pub fn connect() -> Result<ProxySocket> {
-		let user = env::var("USER").unwrap();
-		let s = UnixStream::connect(format!("/tmp/keepassxc-{}.socket", user))?;
+		let socket_name = "kpxc_server";
+		let socket: String;
+		if let Ok(xdg) = env::var("XDG_RUNTIME_DIR") {
+			socket = format!("{}/{}", xdg, socket_name);
+		} else {
+			socket = format!("/tmp/{}", socket_name);
+		}
+		let msg = format!("Can't connect to socket: {}", socket);
+		let s = UnixStream::connect(socket).expect(&msg);
 		let timeout: Option<Duration> = Some(Duration::from_secs(1));
 		s.set_read_timeout(timeout)?;
 		Ok(ProxySocket(s))
