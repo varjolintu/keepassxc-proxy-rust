@@ -6,23 +6,15 @@ use std::io::{self, Read, Write};
 use std::thread;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 
-#[cfg(not(windows))]
-#[path = "platform_unix.rs"]
-mod platform;
+mod proxy_socket;
 
-#[cfg(windows)]
-#[path = "platform_windows.rs"]
-mod platform;
+use proxy_socket::ProxySocket;
 
-use platform::ProxySocket;
-
-fn valid_length(length: u32) -> bool
-{
-	return length > 0 && length <= 4096;	// 1024 ^ 2 is the maximum
+fn valid_length(length: u32) -> bool {
+	return length > 0 && length <= 4096; // 1024 ^ 2 is the maximum
 }
 
-fn read_header() -> u32
-{
+fn read_header() -> u32 {
 	let stdin = io::stdin();
 	let mut buf = vec![0; 4];
 	let mut handle = stdin.lock();
@@ -31,8 +23,7 @@ fn read_header() -> u32
 	NativeEndian::read_u32(&buf)
 }
 
-fn read_body(length: u32, socket: &mut ProxySocket)
-{
+fn read_body<T: Read + Write>(length: u32, socket: &mut ProxySocket<T>) {
 	let mut buffer = vec![0; length as usize];
 	let stdin = io::stdin();
 	let mut handle = stdin.lock();
@@ -46,8 +37,7 @@ fn read_body(length: u32, socket: &mut ProxySocket)
 	}
 }
 
-fn read_response(socket: &mut ProxySocket)
-{
+fn read_response<T: Read>(socket: &mut ProxySocket<T>) {
 	let mut buf = vec![0; 1024 * 1024];
 	if let Ok(len) = socket.read(&mut buf) {
 		// for some reason the length is 1 byte too long in linux?
@@ -69,7 +59,7 @@ fn write_response(buf: &[u8]) {
 }
 
 fn main() {
-	let mut socket = ProxySocket::connect().unwrap();
+	let mut socket = proxy_socket::connect().unwrap();
 
 	// Start thread for user input reading
 	let ui = thread::spawn(move || {
@@ -79,5 +69,5 @@ fn main() {
 		}
 	});
 
-	let _ui_res = ui.join();
+	let _ui_res = ui.join().unwrap();
 }
