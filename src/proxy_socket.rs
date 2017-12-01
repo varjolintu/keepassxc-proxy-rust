@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{self, Read, Write};
 
 #[cfg(not(windows))]
@@ -28,13 +29,14 @@ impl<W: Write> Write for ProxySocket<W> {
 
 #[cfg(windows)]
 pub fn connect() -> io::Result<ProxySocket<PipeClient>> {
-	let client = PipeClient::connect("\\\\.\\pipe\\KeePassHttp")?;
+	let temp_path = env::var("TEMP").unwrap();
+	let pipe_name = format!("\\\\.\\pipe\\{}\\kpxc_server", temp_path);
+	let client = PipeClient::connect(pipe_name)?;
 	Ok(ProxySocket { inner: client })
 }
 
 #[cfg(not(windows))]
 pub fn connect() -> io::Result<ProxySocket<UnixStream>> {
-	use std::env;
 	use std::time::Duration;
 
 	let socket_name = "kpxc_server";
