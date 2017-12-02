@@ -10,6 +10,8 @@ mod proxy_socket;
 
 use proxy_socket::ProxySocket;
 
+const BUFFER_SIZE: u32 = 1024 * 16;
+
 fn valid_length(length: u32) -> bool {
 	return length > 0 && length <= 4096; // 1024 ^ 2 is the maximum
 }
@@ -38,14 +40,9 @@ fn read_body<T: Read + Write>(length: u32, socket: &mut ProxySocket<T>) {
 }
 
 fn read_response<T: Read>(socket: &mut ProxySocket<T>) {
-	let mut buf = vec![0; 1024 * 1024];
+	let mut buf = vec![0; BUFFER_SIZE as usize];
 	if let Ok(len) = socket.read(&mut buf) {
-		// for some reason the length is 1 byte too long in linux?
-		let mut adjust = 0;
-		if cfg!(not(windows)) {
-			adjust = 1;
-		}
-		write_response(&buf[0..len - adjust]);
+		write_response(&buf[0..len]);
 	}
 }
 
