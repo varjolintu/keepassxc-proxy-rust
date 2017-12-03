@@ -10,10 +10,10 @@ mod proxy_socket;
 
 use proxy_socket::ProxySocket;
 
-const BUFFER_SIZE: u32 = 1024 * 16;
+const BUFFER_SIZE: u32 = 1024 * 16;	 // 1024 ^ 2 is the maximum
 
 fn valid_length(length: u32) -> bool {
-	return length > 0 && length <= 4096; // 1024 ^ 2 is the maximum
+	return length > 0 && length <= BUFFER_SIZE;
 }
 
 fn read_header() -> u32 {
