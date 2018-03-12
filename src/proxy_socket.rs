@@ -29,8 +29,8 @@ impl<W: Write> Write for ProxySocket<W> {
 
 #[cfg(windows)]
 pub fn connect() -> io::Result<ProxySocket<PipeClient>> {
-	let temp_path = env::var("TEMP").unwrap();
-	let pipe_name = format!("\\\\.\\pipe\\{}\\kpxc_server", temp_path);
+	let username = env::var("USERNAME").unwrap();
+	let pipe_name = format!("\\\\.\\pipe\\keepassxc\\{}\\kpxc_server", username);
 	let client = PipeClient::connect(pipe_name)?;
 	Ok(ProxySocket { inner: client })
 }

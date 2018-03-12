@@ -4,11 +4,12 @@ Application that works as a proxy between Native Messaging browser extension and
 This is still under development. Installing the proxy needs manual changes to JSON scripts installed for Native Messaging.
 See [this page](https://developer.chrome.com/extensions/nativeMessaging) for further information.
 
-keepassxc-proxy listens stdin from keepassxc-browser extension and transfers the data to Unix domain socket `/tmp/kpxc_server` which KeePassXC listens.
+keepassxc-proxy listens stdin from keepassxc-browser extension and transfers the data to Unix domain socket `XDG_RUNTIME_DIR` or `/tmp/kpxc_server` which KeePassXC listens.
+With Windows this is a named pipe under `keepassxc\<username>\kpxc_server`.
 
 ```
-Copyright (C) 2017 Sami Vänttinen <sami.vanttinen@protonmail.com>
-Copyright (C) 2017 Andy Brandt <andy@brandt.tech>
+Copyright (C) 2017-2018 Sami Vänttinen <sami.vanttinen@protonmail.com>
+Copyright (C) 2017-2018 Andy Brandt <andy@brandt.tech>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
