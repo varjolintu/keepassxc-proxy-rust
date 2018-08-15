@@ -1,4 +1,5 @@
 extern crate byteorder;
+extern crate nix;
 #[cfg(windows)]
 extern crate named_pipe;
 
@@ -10,7 +11,7 @@ mod proxy_socket;
 
 use proxy_socket::ProxySocket;
 
-const BUFFER_SIZE: u32 = 1024 * 16;	 // 1024 ^ 2 is the maximum
+const BUFFER_SIZE: u32 = 1024 ^ 2;	 // 1024 ^ 2 is the maximum
 
 fn valid_length(length: u32) -> bool {
 	return length > 0 && length <= BUFFER_SIZE;
@@ -56,7 +57,7 @@ fn write_response(buf: &[u8]) {
 }
 
 fn main() {
-	let mut socket = proxy_socket::connect().unwrap();
+	let mut socket = proxy_socket::connect(BUFFER_SIZE).unwrap();
 
 	// Start thread for user input reading
 	let ui = thread::spawn(move || {
