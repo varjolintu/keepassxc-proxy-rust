@@ -1,5 +1,6 @@
 use std::env;
 use std::io::{self, Read, Write};
+use std::path::Path;
 
 #[cfg(not(windows))]
 use std::os::unix::io::AsRawFd;
@@ -45,8 +46,15 @@ pub fn connect(buffer_size: u32) -> io::Result<ProxySocket<UnixStream>> {
 
     let socket_name = "org.keepassxc.KeePassXC.BrowserServer";
     let socket: String;
-    if let Ok(dir) = if cfg!(target_os = "macos") {env::var("TMPDIR") } else { env::var("XDG_RUNTIME_DIR") } {
-        socket = format!("{}/{}", dir, socket_name);
+    if let Ok(xdg_run_dir) = env::var("XDG_RUNTIME_DIR") {
+        let flatpak_run_dir = format!("{}/app/org.keepassxc.KeePassXC", xdg_run_dir);
+        if Path::new(&flatpak_run_dir).is_dir() {
+            socket = format!("{}/{}", flatpak_run_dir, socket_name);
+        } else {
+            socket = format!("{}/{}", xdg_run_dir, socket_name);
+        }
+    } else if let Ok(tmpdir) = env::var("TMPDIR") {
+        socket = format!("{}/{}", tmpdir, socket_name);
     } else {
         socket = format!("/tmp/{}", socket_name);
     }
