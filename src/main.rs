@@ -31,12 +31,10 @@ fn read_body<T: Read + Write>(length: u32, socket: &mut ProxySocket<T>) {
     let stdin = io::stdin();
     let mut handle = stdin.lock();
 
-    if let Ok(_) = handle.read_exact(&mut buffer) {
-        if valid_length(length) {
-            socket.write_all(&buffer).unwrap();
-            socket.flush().unwrap();
-            read_response(socket);
-        }
+    if handle.read_exact(&mut buffer).is_ok() && valid_length(length) {
+        socket.write_all(&buffer).unwrap();
+        socket.flush().unwrap();
+        read_response(socket);
     }
 }
 
