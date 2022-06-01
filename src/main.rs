@@ -3,6 +3,7 @@ extern crate nix;
 #[cfg(windows)]
 extern crate named_pipe;
 
+use std::convert::TryInto;
 use std::io::{self, Read, Write};
 use std::thread;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
@@ -11,23 +12,23 @@ mod proxy_socket;
 
 use proxy_socket::ProxySocket;
 
-const BUFFER_SIZE: u32 = 1024 ^ 2;	 // 1024 ^ 2 is the maximum
+const BUFFER_SIZE: usize = 1024 ^ 2;	 // 1024 ^ 2 is the maximum
 
-fn valid_length(length: u32) -> bool {
-    return length > 0 && length <= BUFFER_SIZE;
+fn valid_length(length: usize) -> bool {
+    length > 0 && length <= BUFFER_SIZE
 }
 
-fn read_header() -> u32 {
+fn read_header() -> usize {
     let stdin = io::stdin();
     let mut buf = vec![0; 4];
     let mut handle = stdin.lock();
 
     handle.read_exact(&mut buf).unwrap();
-    NativeEndian::read_u32(&buf)
+    NativeEndian::read_u32(&buf).try_into().unwrap()
 }
 
-fn read_body<T: Read + Write>(length: u32, socket: &mut ProxySocket<T>) {
-    let mut buffer = vec![0; length as usize];
+fn read_body<T: Read + Write>(length: usize, socket: &mut ProxySocket<T>) {
+    let mut buffer = vec![0; length];
     let stdin = io::stdin();
     let mut handle = stdin.lock();
 
@@ -39,7 +40,7 @@ fn read_body<T: Read + Write>(length: u32, socket: &mut ProxySocket<T>) {
 }
 
 fn read_response<T: Read>(socket: &mut ProxySocket<T>) {
-    let mut buf = vec![0; BUFFER_SIZE as usize];
+    let mut buf = vec![0; BUFFER_SIZE];
     if let Ok(len) = socket.read(&mut buf) {
         write_response(&buf[0..len]);
     }

@@ -32,7 +32,7 @@ impl<W: Write> Write for ProxySocket<W> {
 }
 
 #[cfg(windows)]
-pub fn connect(buffer_size: u32) -> io::Result<ProxySocket<PipeClient>> {
+pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<PipeClient>> {
     let username = env::var("USERNAME").unwrap();
     let pipe_name = format!("\\\\.\\pipe\\keepassxc\\{}\\org.keepassxc.KeePassXC.BrowserServer", username);
     let client = PipeClient::connect(pipe_name)?;
@@ -40,7 +40,7 @@ pub fn connect(buffer_size: u32) -> io::Result<ProxySocket<PipeClient>> {
 }
 
 #[cfg(not(windows))]
-pub fn connect(buffer_size: u32) -> io::Result<ProxySocket<UnixStream>> {
+pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<UnixStream>> {
     use std::time::Duration;
 
     let socket_name = "org.keepassxc.KeePassXC.BrowserServer";
@@ -50,8 +50,8 @@ pub fn connect(buffer_size: u32) -> io::Result<ProxySocket<UnixStream>> {
         format!("/tmp/{}", socket_name)
     };
     let s = UnixStream::connect(socket)?;
-    socket::setsockopt(s.as_raw_fd(), SndBuf, &(buffer_size as usize)).expect("setsockopt for SndBuf failed");
-    socket::setsockopt(s.as_raw_fd(), RcvBuf, &(buffer_size as usize)).expect("setsockopt for RcvBuf failed");
+    socket::setsockopt(s.as_raw_fd(), SndBuf, &buffer_size).expect("setsockopt for SndBuf failed");
+    socket::setsockopt(s.as_raw_fd(), RcvBuf, &buffer_size).expect("setsockopt for RcvBuf failed");
     let timeout: Option<Duration> = Some(Duration::from_secs(1));
     s.set_read_timeout(timeout)?;
     Ok(ProxySocket { inner: s })
