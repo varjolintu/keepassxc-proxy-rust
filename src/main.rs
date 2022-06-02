@@ -31,12 +31,10 @@ fn read_body<T: Read + Write>(length: u32, socket: &mut ProxySocket<T>) {
     let stdin = io::stdin();
     let mut handle = stdin.lock();
 
-    if let Ok(_) = handle.read_exact(&mut buffer) {
-        if valid_length(length) {
-            socket.write(&buffer).unwrap();
-            socket.flush().unwrap();
-            read_response(socket);
-        }
+    if handle.read_exact(&mut buffer).is_ok() && valid_length(length) {
+        socket.write_all(&buffer).unwrap();
+        socket.flush().unwrap();
+        read_response(socket);
     }
 }
 
@@ -52,7 +50,7 @@ fn write_response(buf: &[u8]) {
     let mut out = stdout.lock();
 
     out.write_u32::<NativeEndian>(buf.len() as u32).unwrap();
-    out.write(buf).unwrap();
+    out.write_all(buf).unwrap();
     out.flush().unwrap();
 }
 

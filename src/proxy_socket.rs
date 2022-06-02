@@ -44,12 +44,11 @@ pub fn connect(buffer_size: u32) -> io::Result<ProxySocket<UnixStream>> {
     use std::time::Duration;
 
     let socket_name = "org.keepassxc.KeePassXC.BrowserServer";
-    let socket: String;
-    if let Ok(dir) = if cfg!(target_os = "macos") {env::var("TMPDIR") } else { env::var("XDG_RUNTIME_DIR") } {
-        socket = format!("{}/{}", dir, socket_name);
+    let socket = if let Ok(dir) = if cfg!(target_os = "macos") {env::var("TMPDIR") } else { env::var("XDG_RUNTIME_DIR") } {
+        format!("{}/{}", dir, socket_name)
     } else {
-        socket = format!("/tmp/{}", socket_name);
-    }
+        format!("/tmp/{}", socket_name)
+    };
     let s = UnixStream::connect(socket)?;
     socket::setsockopt(s.as_raw_fd(), SndBuf, &(buffer_size as usize)).expect("setsockopt for SndBuf failed");
     socket::setsockopt(s.as_raw_fd(), RcvBuf, &(buffer_size as usize)).expect("setsockopt for RcvBuf failed");
