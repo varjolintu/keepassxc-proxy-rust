@@ -2,6 +2,7 @@ extern crate byteorder;
 #[cfg(windows)]
 extern crate named_pipe;
 extern crate nix;
+extern crate notify;
 
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
 use std::convert::TryInto;
