@@ -1,12 +1,12 @@
 extern crate byteorder;
-extern crate nix;
 #[cfg(windows)]
 extern crate named_pipe;
+extern crate nix;
 
-use std::convert::TryInto;
-use std::io::{self, Read, Write};
-use std::thread;
 use byteorder::{ByteOrder, NativeEndian, WriteBytesExt};
+use std::convert::TryInto;
+use std::io::{stdin, stdout, Error, ErrorKind, Read, Result, Write};
+use std::thread;
 
 mod proxy_socket;
 
@@ -19,7 +19,7 @@ fn valid_length(length: usize) -> bool {
 }
 
 fn read_header() -> usize {
-    let stdin = io::stdin();
+    let stdin = stdin();
     let mut buf = vec![0; 4];
     let mut handle = stdin.lock();
 
@@ -29,7 +29,7 @@ fn read_header() -> usize {
 
 fn read_body<T: Read + Write>(length: usize, socket: &mut ProxySocket<T>) {
     let mut buffer = vec![0; length];
-    let stdin = io::stdin();
+    let stdin = stdin();
     let mut handle = stdin.lock();
 
     if handle.read_exact(&mut buffer).is_ok() && valid_length(length) {
@@ -47,7 +47,7 @@ fn read_response<T: Read>(socket: &mut ProxySocket<T>) {
 }
 
 fn write_response(buf: &[u8]) {
-    let stdout = io::stdout();
+    let stdout = stdout();
     let mut out = stdout.lock();
 
     out.write_u32::<NativeEndian>(buf.len() as u32).unwrap();
