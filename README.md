@@ -7,6 +7,33 @@ See [this page](https://developer.chrome.com/extensions/nativeMessaging) for fur
 keepassxc-proxy listens stdin from keepassxc-browser extension and transfers the data to Unix domain socket `XDG_RUNTIME_DIR` or `/tmp/org.keepassxc.KeePassXC.BrowserServer` which KeePassXC listens.
 With Windows this is a named pipe under `org.keepassxc.KeePassXC.BrowserServer\<username>`.
 
+
+## Building
+
+The proxy can be built with:
+
+```bash
+cargo build --release
+```
+
+### Static library
+
+To build a binary without dependencies (which is useful for running
+inside of a flatpak), you'll have to install MUSL libc first:
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+```
+
+Then build with
+
+```bash
+RUSTFLAGS='-C link-arg=-s' cargo build --release --target x86_64-unknown-linux-musl
+```
+
+(see [Stackoverflow](https://stackoverflow.com/a/59766875/487503))
+## Copyright
+
 ```
 Copyright (C) 2017-2021 Sami Vänttinen <sami.vanttinen@protonmail.com>
 Copyright (C) 2017-2018 Andy Brandt <andy@brandt.tech>
