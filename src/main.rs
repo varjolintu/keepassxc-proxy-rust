@@ -60,8 +60,11 @@ fn main() -> Result<()> {
     let mut socket = proxy_socket::connect(BUFFER_SIZE)?;
     let mut socket_clone = socket.try_clone()?;
 
-    thread::spawn(move || stdin_to_socket(&mut socket));
-    socket_to_stdout(&mut socket_clone)?;
+    thread::scope(|s| {
+        // When either of these panic, we exit immediately.
+        s.spawn(move || stdin_to_socket(&mut socket).unwrap());
+        s.spawn(move || socket_to_stdout(&mut socket_clone).unwrap());
+    });
 
     Ok(())
 }
