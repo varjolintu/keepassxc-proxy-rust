@@ -1,13 +1,13 @@
 use std::env;
 use std::io::{self, Read, Write};
 
+use nix::sys::socket;
+use nix::sys::socket::sockopt::RcvBuf;
+use nix::sys::socket::sockopt::SndBuf;
 #[cfg(not(windows))]
 use std::os::unix::io::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
-use nix::sys::socket;
-use nix::sys::socket::sockopt::SndBuf;
-use nix::sys::socket::sockopt::RcvBuf;
 
 #[cfg(windows)]
 use named_pipe::PipeClient;
@@ -15,6 +15,15 @@ use named_pipe::PipeClient;
 pub struct ProxySocket<T> {
     inner: T,
 }
+
+impl ProxySocket<UnixStream> {
+    pub(crate) fn try_clone(&self) -> io::Result<Self> {
+        let inner = self.inner.try_clone()?;
+        Ok(Self { inner })
+    }
+}
+
+// TODO: the window Pipeclient
 
 impl<R: Read> Read for ProxySocket<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
@@ -35,7 +44,10 @@ impl<W: Write> Write for ProxySocket<W> {
 #[cfg(windows)]
 pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<PipeClient>> {
     let username = env::var("USERNAME").unwrap();
-    let pipe_name = format!("\\\\.\\pipe\\keepassxc\\{}\\org.keepassxc.KeePassXC.BrowserServer", username);
+    let pipe_name = format!(
+        "\\\\.\\pipe\\keepassxc\\{}\\org.keepassxc.KeePassXC.BrowserServer",
+        username
+    );
     let client = PipeClient::connect(pipe_name)?;
     Ok(ProxySocket { inner: client })
 }
@@ -70,8 +82,6 @@ fn get_socket_dirs() -> Vec<PathBuf> {
 
 #[cfg(not(windows))]
 pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<UnixStream>> {
-    use std::time::Duration;
-
     let socket_name = "org.keepassxc.KeePassXC.BrowserServer";
     let dirs = get_socket_dirs();
     let s = dirs
@@ -82,7 +92,8 @@ pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<UnixStream>> {
     socket::setsockopt(s.as_raw_fd(), SndBuf, &buffer_size)?;
     socket::setsockopt(s.as_raw_fd(), RcvBuf, &buffer_size)?;
 
-    let timeout: Option<Duration> = Some(Duration::from_secs(1));
-    s.set_read_timeout(timeout)?;
+    // Make sure reads are blocking.
+    s.set_nonblocking(false)?;
+
     Ok(ProxySocket { inner: s })
 }
