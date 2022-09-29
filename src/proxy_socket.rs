@@ -49,7 +49,7 @@ fn get_socket_dirs() -> Vec<PathBuf> {
     let mut dirs = Vec::new();
 
     if !cfg!(target_os = "macos") {
-        if let Ok(dir) = env::var("XDG_RUNTIME_DIR")  {
+        if let Ok(dir) = env::var("XDG_RUNTIME_DIR") {
             let xdg_runtime_dir: PathBuf = dir.into();
 
             // Sandbox-friendly path.
@@ -79,8 +79,9 @@ pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<UnixStream>> {
         .find_map(|dir| UnixStream::connect(dir.join(socket_name)).ok())
         .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
 
-    socket::setsockopt(s.as_raw_fd(), SndBuf, &buffer_size).expect("setsockopt for SndBuf failed");
-    socket::setsockopt(s.as_raw_fd(), RcvBuf, &buffer_size).expect("setsockopt for RcvBuf failed");
+    socket::setsockopt(s.as_raw_fd(), SndBuf, &buffer_size)?;
+    socket::setsockopt(s.as_raw_fd(), RcvBuf, &buffer_size)?;
+
     let timeout: Option<Duration> = Some(Duration::from_secs(1));
     s.set_read_timeout(timeout)?;
     Ok(ProxySocket { inner: s })
