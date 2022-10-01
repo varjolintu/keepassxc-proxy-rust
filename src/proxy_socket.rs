@@ -1,16 +1,21 @@
 use std::env;
-use std::io::{self, Read, Write};
+use std::io::{self, Read, Write, Error, ErrorKind};
 
 #[cfg(not(windows))]
 use std::os::unix::io::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
+use std::sync::mpsc::channel;
+use std::time::Duration;
 use nix::sys::socket;
 use nix::sys::socket::sockopt::SndBuf;
 use nix::sys::socket::sockopt::RcvBuf;
 
 #[cfg(windows)]
 use named_pipe::PipeClient;
+use notify::{RecommendedWatcher, Watcher, RecursiveMode, Op};
+
+const SOCKET_NAME : &str = "org.keepassxc.KeePassXC.BrowserServer";
 
 pub struct ProxySocket<T> {
     inner: T,
@@ -68,16 +73,57 @@ fn get_socket_dirs() -> Vec<PathBuf> {
     dirs
 }
 
+// Connects to the socket or waits for it.
+//
+// If the socket already exists, connect to it immediately, otherwise, wait
+// until it appears, and then connect to it.
+//
+// This function is blocking, and may block indefinitely if KeePassXC is never
+// started.
+fn get_or_await_socket() -> io::Result<UnixStream> {
+    let dirs = get_socket_dirs();
+
+    // Set up a watcher to await for the socket to be created.
+    // Do this before checking for existing sockets to avoid race conditions.
+    let (tx, rx) = channel();
+    let mut watcher: RecommendedWatcher =
+        Watcher::new_raw(tx).map_err(|err| Error::new(ErrorKind::Other, err))?;
+
+    // If a socket exists, return that immediately:
+    if let Some(socket) = dirs
+        .iter()
+        .find_map(|dir| {
+            // Start watching this directory in case a socket is created from this moment onwards.
+            if watcher.watch(dir, RecursiveMode::NonRecursive).is_err() {
+                eprintln!("Failed to watch {:?}", dir);
+            }
+
+            // Check if the socket already exists.
+            UnixStream::connect(dir.join(SOCKET_NAME)).ok()
+        }) {
+            return Ok(socket);
+        };
+
+    // Watch the candidate directories and await for the socket to be created.
+    //
+    // Note that if the socket was created after the beginning of this function and before the
+    // above iteration, the watcher will have an even for this already.
+    loop {
+        match rx.recv() {
+            Ok(notify::RawEvent{op: Ok(Op::CREATE), path: Some(path), ..}) => {
+                if path.file_name().unwrap_or_default() == SOCKET_NAME {
+                    return UnixStream::connect(path);
+                }
+            },
+            Ok(_) => {},
+            Err(err) => return Err(Error::new(ErrorKind::Other, err)),
+        }
+    };
+}
+
 #[cfg(not(windows))]
 pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<UnixStream>> {
-    use std::time::Duration;
-
-    let socket_name = "org.keepassxc.KeePassXC.BrowserServer";
-    let dirs = get_socket_dirs();
-    let s = dirs
-        .iter()
-        .find_map(|dir| UnixStream::connect(dir.join(socket_name)).ok())
-        .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
+    let s = get_or_await_socket()?;
 
     socket::setsockopt(s.as_raw_fd(), SndBuf, &buffer_size)?;
     socket::setsockopt(s.as_raw_fd(), RcvBuf, &buffer_size)?;
