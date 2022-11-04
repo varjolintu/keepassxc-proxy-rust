@@ -35,7 +35,7 @@ RUSTFLAGS='-C link-arg=-s' cargo build --release --target x86_64-unknown-linux-m
 ## Copyright
 
 ```
-Copyright (C) 2017-2021 Sami Vänttinen <sami.vanttinen@protonmail.com>
+Copyright (C) 2017-2022 Sami Vänttinen <sami.vanttinen@ahmala.org>
 Copyright (C) 2017-2018 Andy Brandt <andy@brandt.tech>
 
 This program is free software: you can redistribute it and/or modify

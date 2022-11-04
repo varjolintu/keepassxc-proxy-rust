@@ -1,7 +1,7 @@
 [package]
 name = "keepassxc-proxy"
-version = "0.1.0"
-authors = ["varjolintu <sami.vanttinen@protonmail.com>"]
+version = "0.2.0"
+authors = ["varjolintu <sami.vanttinen@ahmala.org>"]
 keywords = ["native", "messaging", "host", "protocol", "keepassxc"]
 license = "GPL-3.0"
 repository = "https://github.com/varjolintu/keepassxc-proxy-rust"
