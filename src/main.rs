@@ -12,75 +12,64 @@ mod proxy_socket;
 
 use proxy_socket::ProxySocket;
 
-const BUFFER_SIZE: usize = 1024 ^ 2; // 1024 ^ 2 is the maximum
-
-fn valid_length(length: usize) -> bool {
-    length > 0 && length <= BUFFER_SIZE
-}
-
-// Read a header (message size) from stdin (e.g.: from the browser).
-fn read_header() -> Result<usize> {
-    let stdin = stdin();
-    let mut buf = vec![0; 4];
-    let mut handle = stdin.lock();
-
-    handle.read_exact(&mut buf)?;
-
-    NativeEndian::read_u32(&buf)
-        .try_into()
-        .map_err(|err| Error::new(ErrorKind::InvalidData, err))
-}
-
-// Handle a whole request/response cycle
+// > The maximum size of a single message from the application is 1 MB.
 //
-// Read a message body from stdin (e.g.: from the browser), and echo it back to the browser's
-// socket. Then await a response from the socket and relay that back to the browser.
-fn read_body<T: Read + Write>(length: usize, socket: &mut ProxySocket<T>) -> Result<()> {
-    let mut buffer = vec![0; length];
-    let stdin = stdin();
-    let mut handle = stdin.lock();
+// From: https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Native_messaging#app_side
+const BUFFER_SIZE: usize = 1024 * 1024;
 
-    handle.read_exact(&mut buffer)?;
+/// Reads from stdin and writes to the socket.
+/// Returns on error.
+fn stdin_to_socket<T: Read + Write>(socket: &mut ProxySocket<T>) -> Result<()> {
+    let mut handle = stdin().lock();
+    let mut len = vec![0; std::mem::size_of::<u32>()];
 
-    if valid_length(length) {
+    loop {
+        handle.read_exact(&mut len)?;
+        let length: usize = NativeEndian::read_u32(&len)
+            .try_into()
+            .map_err(|err| Error::new(ErrorKind::InvalidData, err))?;
+
+        let mut buffer = vec![0; length];
+        handle.read_exact(&mut buffer)?;
+
         socket.write_all(&buffer)?;
         socket.flush()?;
-        read_response(socket)?;
     }
-
-    Ok(())
 }
 
-// Read a response (from KP's socket) and echo it back to the browser.
-fn read_response<T: Read>(socket: &mut ProxySocket<T>) -> Result<()>{
-    let mut buf = vec![0; BUFFER_SIZE];
-    if let Ok(len) = socket.read(&mut buf) {
-        write_response(&buf[0..len])?;
+/// Reads from the socket and writes to stdout.
+/// Returns on error.
+fn socket_to_stdout<T: Read + Write>(socket: &mut ProxySocket<T>) -> Result<()> {
+    let mut out = stdout().lock();
+    let mut buf = [0; BUFFER_SIZE];
+
+    loop {
+        if let Ok(len) = socket.read(&mut buf) {
+            // If a message is larger than the maximum, ignore it entirely. These are disallowed
+            // by the browser anyway, so sending one would be a protocol violation.
+            if len <= BUFFER_SIZE {
+                out.write_u32::<NativeEndian>(len as u32)?;
+                out.write_all(&buf[..len])?;
+                out.flush()?;
+            };
+        } else {
+            // TOOD: is the socket is closed, we should try to reconnect.
+
+            return Err(Error::from(ErrorKind::BrokenPipe));
+        }
     }
-
-    Ok(())
 }
 
-// Write a response to stdout (e.g.: to the browser).
-fn write_response(buf: &[u8]) -> Result<()> {
-    let stdout = stdout();
-    let mut out = stdout.lock();
+fn main() -> Result<()> {
+    let mut socket = proxy_socket::connect(BUFFER_SIZE)?;
+    let mut socket_clone = socket.try_clone()?;
 
-    out.write_u32::<NativeEndian>(buf.len() as u32)?;
-    out.write_all(buf)?;
-    out.flush()?;
+    thread::spawn(move || socket_to_stdout(&mut socket_clone).unwrap());
+
+    // If stdin is closed, that means that Firefox has exited, so we exit too.
+    // If the socket is closed, this will (eventually) fail too, however, this can later be
+    // refactored to reconnect the underlying ProxySocket.
+    stdin_to_socket(&mut socket).unwrap();
 
     Ok(())
-}
-
-fn main() {
-    let mut socket = proxy_socket::connect(BUFFER_SIZE).unwrap();
-
-    // Start thread for user input reading
-    let ui = thread::spawn(move || loop {
-        let length = read_header().unwrap();
-        read_body(length, &mut socket).unwrap();
-    });
-
-    let _ui_res = ui.join().unwrap();
 }
