@@ -8,6 +8,21 @@ keepassxc-proxy listens stdin from keepassxc-browser extension and transfers the
 With Windows this is a named pipe under `org.keepassxc.KeePassXC.BrowserServer\<username>`.
 
 
+## Installing
+
+### Alpine Linux
+
+If you use Alpine Linux, you can install the proxy from the [keepassxc-proxy-static](https://pkgs.alpinelinux.org/packages?name=keepassxc-proxy-static) package.
+It's built as a static binary, so it can be used with a browser installed from and running in Flatpak.
+This package is available in Alpine Linux repositories since (upcoming) v3.17 and in Edge.
+
+```bash
+apk add keepassxc-proxy-static
+```
+
+You can then install the proxy and associated config into Firefox or Chromium using the `keepassxc-proxy-install` command.
+Run `keepassxc-proxy-install -h` for more information.
+
 ## Building
 
 The proxy can be built with:
