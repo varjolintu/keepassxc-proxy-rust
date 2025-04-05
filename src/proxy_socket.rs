@@ -7,7 +7,7 @@ use {
         setsockopt,
         sockopt::{RcvBuf, SndBuf},
     },
-    std::os::unix::{io::AsRawFd, net::UnixStream},
+    std::os::unix::net::UnixStream,
     std::path::PathBuf,
 };
 
@@ -96,8 +96,8 @@ pub fn connect(buffer_size: usize) -> io::Result<ProxySocket<UnixStream>> {
         .find_map(|dir| UnixStream::connect(dir.join(socket_name)).ok())
         .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))?;
 
-    setsockopt(s.as_raw_fd(), SndBuf, &buffer_size)?;
-    setsockopt(s.as_raw_fd(), RcvBuf, &buffer_size)?;
+    setsockopt(&s, SndBuf, &buffer_size)?;
+    setsockopt(&s, RcvBuf, &buffer_size)?;
 
     // Make sure reads are blocking.
     s.set_nonblocking(false)?;
