@@ -48,6 +48,12 @@ Then build with
 RUSTFLAGS='-C link-arg=-s' cargo build --release --target x86_64-unknown-linux-musl
 ```
 
+If you want to use keepass-proxy-rust in Flatpak, or on another system (cross-compiling or different linker), use this instead:
+
+```bash
+RUSTFLAGS='-C link-arg=-s -Clink-self-contained=y -Clinker=rust-lld' cargo build --release --target x86_64-unknown-linux-musl
+```
+
 (see [Stackoverflow](https://stackoverflow.com/a/59766875/487503))
 ## Copyright
 
